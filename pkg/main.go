@@ -15,13 +15,15 @@ func main() {
 	router := gin.New()
 	router.Use(middleware.GinLogger(), gin.Recovery())
 
+	// Public endpoints
 	public := router.Group("/public")
-
 	controller.NewPingController(public, "public pong")
 
+	// Private endpoints
 	private := router.Group("/private")
 	private.Use(middleware.Authorize())
-
 	controller.NewPingController(private, "secure pong")
 
+	// Serve API on default port (8080)
+	router.Run()
 }
