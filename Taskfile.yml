@@ -6,30 +6,30 @@ vars:
 
 tasks:
   deps:
-      desc: "Install dependencies for local development"
-      env:
-        GOPATH: "{{.GOPATH}}"
-      cmds:
-        - python3 -m pip install pre-commit
-        - pre-commit install
-        - go mod tidy
-        - go mod vendor
+    desc: "Install dependencies for local development"
+    env:
+      GOPATH: "{{.GOPATH}}"
+    cmds:
+      - python3 -m pip install pre-commit
+      - pre-commit install
+      - go mod tidy
+      - go mod vendor
   fmt:
-      desc: Format project code
-      env:
-        GOPATH: "{{.GOPATH}}"
-      cmds:
-        - sh: go fmt $$(go list ./...)
-    lint:
-      desc: Run linters for project
-      env:
-        GOPATH: "{{.GOPATH}}"
-      cmds:
-        - sh: go run golang.org/x/lint/golint --set_exit_status $$(go list ./...)
-        - go vet ./...
-    test:
-      desc: Test the plugin
-      env:
-        GOPATH: "{{.GOPATH}}"
-      cmds:
-        - go test ./...
+    desc: Format project code
+    env:
+      GOPATH: "{{.GOPATH}}"
+    cmds:
+      - sh: go fmt $$(go list ./...)
+  lint:
+    desc: Run linters for project
+    env:
+      GOPATH: "{{.GOPATH}}"
+    cmds:
+      - sh: go run golang.org/x/lint/golint --set_exit_status $$(go list ./...)
+      - go vet ./...
+  test:
+    desc: Test the plugin
+    env:
+      GOPATH: "{{.GOPATH}}"
+    cmds:
+      - go test ./...
