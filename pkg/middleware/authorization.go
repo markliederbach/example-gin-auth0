@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -11,11 +12,10 @@ import (
 )
 
 const (
-	// API identifier
+	// Auth0 API
 	audience string = "https://quickstarts/api"
-
-	// Auth0 Tenant
-	issuer string = "https://qtower.us.auth0.com/"
+	baseURL  string = "https://qtower.us.auth0.com"
+	issuer   string = baseURL
 
 	authorizationHeader string = "Authorization"
 )
@@ -23,6 +23,20 @@ const (
 type AuthClaims struct {
 	Scope string `json:"scope"`
 	jwt.StandardClaims
+}
+
+type JWKSResponse struct {
+	Keys []JSONWebKey `json:"keys"`
+}
+
+type JSONWebKey struct {
+	Alg string   `json:"alg"`
+	Kty string   `json:"kty"`
+	Kid string   `json:"kid"`
+	Use string   `json:"use"`
+	N   string   `json:"n"`
+	E   string   `json:"e"`
+	X5c []string `json:"x5c"`
 }
 
 // Authorize checks that a JWT token is valid and scoped correctly.
@@ -50,6 +64,16 @@ func Authorize() gin.HandlerFunc {
 			return
 		}
 
+		_, _, err := validateToken(encodedToken)
+		if err != nil {
+			// TODO: log the error
+			forbidden(context)
+			return
+		}
+
+		// TODO: Check scopes
+
+		// TODO: Attach validate token data to context
 	}
 }
 
@@ -114,7 +138,44 @@ func unauthorized(context *gin.Context) {
 	context.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 }
 
+func forbidden(context *gin.Context) {
+	context.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+}
+
 func getPemCert(token *jwt.Token) (string, error) {
-	// TODO
-	return "", nil
+	// TODO: Caching response to avoid requests on every validate
+	cert := ""
+	certURL := fmt.Sprintf("%s/.well-known/jwks.json", baseURL)
+	client := http.Client{Timeout: time.Second * 3}
+
+	response, err := client.Get(certURL)
+	if err != nil {
+		return cert, err
+	}
+
+	if response.StatusCode != http.StatusOK {
+		return cert, fmt.Errorf("%s: %s", certURL, response.Status)
+	}
+
+	defer response.Body.Close()
+
+	jwksResponse := JWKSResponse{}
+	if err := json.NewDecoder(response.Body).Decode(&jwksResponse); err != nil {
+		return cert, err
+	}
+
+	for key := range jwksResponse.Keys {
+		if token.Header["kid"] == jwksResponse.Keys[key].Kid {
+			cert = fmt.Sprintf(
+				"-----BEGIN CERTIFICATE-----\n%s\n-----END CERTIFICATE-----",
+				jwksResponse.Keys[key].X5c[0],
+			)
+		}
+	}
+
+	if cert == "" {
+		return cert, fmt.Errorf("Unable to find appropriate key")
+	}
+
+	return cert, nil
 }
